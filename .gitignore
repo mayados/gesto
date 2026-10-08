@@ -1,0 +1,19 @@
+# Secrets et environnement 
+/.env
+.env.local
+.env.*.local
+
+# Node.js
+node_modules/
+
+# PHP / Symfony
+vendor/
+var/
+.phpunit.cache/
+.php-cs-fixer.cache
+
+# Éditeurs et système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
