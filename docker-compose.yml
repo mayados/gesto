@@ -4,18 +4,28 @@ services:
   frontend:
     image: nginx:1.27-alpine
     ports:
-      - "${FRONTEND_PORT:-8080}:80"   
+      - "${FRONTEND_PORT:-8080}:80"  
     networks:
       - public    
       - backend   
     restart: unless-stopped
 
-  # Faux backend pour tester l'isolation. À supprimer quand accounts arrive.
-  hello:
-    image: nginx:1.27-alpine
+  accounts:
+    build: ./backend/accounts         
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-2h}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}   
+      DB_HOST: db                              
+      DB_NAME: gesto_accounts
+      DB_USER: accounts
+      DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD:?ACCOUNTS_DB_PASSWORD manquant dans .env}
+    depends_on:
+      db:
+        condition: service_healthy     # attend que la base soit prête
     networks:
-      - backend
-      - data
+      - backend   
+      - data     
     restart: unless-stopped
 
   db:
@@ -28,6 +38,12 @@ services:
     volumes:
       - db-data:/var/lib/mysql                    
       - ./db/init:/docker-entrypoint-initdb.d:ro  
+    healthcheck:                         
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - data      
     restart: unless-stopped
