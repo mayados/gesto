@@ -1,0 +1,43 @@
+name: gesto
+
+services:
+  frontend:
+    image: nginx:1.27-alpine
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"   
+    networks:
+      - public    
+      - backend   
+    restart: unless-stopped
+
+  # Faux backend pour tester l'isolation. À supprimer quand accounts arrive.
+  hello:
+    image: nginx:1.27-alpine
+    networks:
+      - backend
+      - data
+    restart: unless-stopped
+
+  db:
+    image: mariadb:12.3
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans .env}
+      ACCOUNTS_DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD:?ACCOUNTS_DB_PASSWORD manquant dans .env}
+      PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD:?PROJECTS_DB_PASSWORD manquant dans .env}
+      TASKS_DB_PASSWORD: ${TASKS_DB_PASSWORD:?TASKS_DB_PASSWORD manquant dans .env}
+    volumes:
+      - db-data:/var/lib/mysql                    
+      - ./db/init:/docker-entrypoint-initdb.d:ro  
+    networks:
+      - data      
+    restart: unless-stopped
+
+networks:
+  public:
+  backend:
+    internal: true   
+  data:
+    internal: true
+
+volumes:
+  db-data:
