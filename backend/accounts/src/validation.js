@@ -6,6 +6,7 @@ function normalizeEmail(email) {
   return String(email).trim().toLowerCase();
 }
 
+// Renvoie un message d'erreur, ou null si les données sont valides.
 function validateRegistration(body) {
   const { email, name, password } = body || {};
 
@@ -23,7 +24,7 @@ function validateRegistration(body) {
   if (password.length < 8) {
     return 'Le mot de passe doit contenir au moins 8 caractères';
   }
-
+  // bcrypt ignore tout ce qui dépasse 72 octets : on refuse plutôt que de tronquer en silence.
   if (Buffer.byteLength(password, 'utf8') > 72) {
     return 'Le mot de passe est trop long (72 octets maximum)';
   }
