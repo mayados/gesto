@@ -1,0 +1,121 @@
+name: Pipeline d'un service
+
+# Workflow réutilisable : ci.yml l'appelle une fois par service.
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Nom du service = nom du dossier dans backend/
+        type: string
+        required: true
+      language:
+        description: Langage du service (node ou php)
+        type: string
+        required: true
+      port:
+        description: Port d'écoute du service dans le conteneur
+        type: string
+        required: true
+
+jobs:
+  test:
+    name: Tests (${{ inputs.service }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/${{ inputs.service }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Installer Node.js
+        if: inputs.language == 'node'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/${{ inputs.service }}/package-lock.json
+
+      - name: Installer les dépendances
+        if: inputs.language == 'node'
+        run: npm ci
+
+      - name: Lancer les tests unitaires
+        if: inputs.language == 'node'
+        run: npm test
+
+  # Les étapes pour PHP (composer install, phpunit) seront ajoutées avec le service projects.
+
+  image:
+    name: Image Docker (${{ inputs.service }})
+    needs: test   # ne démarre que si les tests ont réussi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SERVICE: ${{ inputs.service }}
+      PORT: ${{ inputs.port }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # Les noms d'images GHCR doivent être en minuscules.
+      - name: Calculer le nom de l'image
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/gesto-${SERVICE}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Connexion à GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Identifiants uniques : sha-<commit> pour chaque commit, et le nom du tag pour un tag Git.
+      - name: Préparer les tags de l'image
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=sha
+            type=ref,event=tag
+
+      # Première construction : l'image reste en local pour pouvoir la tester avant de la publier.
+      - name: Construire l'image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend/${{ inputs.service }}
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.service }}
+
+      # Test de fumée : le conteneur démarre, répond sur /health et ne tourne pas en root.
+      - name: Tester le conteneur
+        env:
+          TAG: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          docker run -d --name smoke \
+            -e JWT_SECRET=ci -e DB_HOST=localhost -e DB_USER=ci -e DB_PASSWORD=ci -e DB_NAME=ci \
+            -p "8080:${PORT}" "$TAG"
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/health; then echo; break; fi
+            if [ "$i" = 20 ]; then docker logs smoke; exit 1; fi
+            sleep 1
+          done
+          test "$(docker exec smoke id -u)" != "0" || { echo "Le conteneur tourne en root"; exit 1; }
+          docker stop smoke
+
+      # Seconde construction : mêmes paramètres (le cache la rend quasi instantanée), cette fois avec publication.
+      - name: Publier l'image sur GHCR
+        uses: docker/build-push-action@v7
+        with:
+          context: backend/${{ inputs.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ inputs.service }}
