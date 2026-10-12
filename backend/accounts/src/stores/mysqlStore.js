@@ -1,5 +1,8 @@
 'use strict';
 
+// Accès à MariaDB. Les requêtes sont paramétrées (?) : jamais de concaténation de texte
+// utilisateur dans le SQL, ce qui évite les injections.
+
 function toUser(row) {
   if (!row) return null;
   return {
@@ -44,6 +47,33 @@ function createMysqlStore(pool) {
     async isRevoked(jti) {
       const [rows] = await pool.execute('SELECT 1 FROM revoked_tokens WHERE jti = ?', [jti]);
       return rows.length > 0;
+    },
+
+    async listUsers() {
+      const [rows] = await pool.execute('SELECT * FROM users ORDER BY id');
+      return rows.map(toUser);
+    },
+
+    // Renvoie true si une ligne a été supprimée.
+    async deleteUser(id) {
+      const [result] = await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+      return result.affectedRows > 0;
+    },
+
+    // Idempotent : révoquer deux fois le même jeton ne provoque pas d'erreur.
+    async revokeToken(jti, expiresAt) {
+      await pool.execute(
+        'INSERT INTO revoked_tokens (jti, expires_at) VALUES (?, ?) ON DUPLICATE KEY UPDATE jti = jti',
+        [jti, expiresAt]
+      );
+    },
+
+    // Supprime les jetons révoqués qui auraient de toute façon expiré.
+    async purgeExpiredTokens() {
+      const [result] = await pool.execute('DELETE FROM revoked_tokens WHERE expires_at < ?', [
+        new Date(),
+      ]);
+      return result.affectedRows;
     },
   };
 }

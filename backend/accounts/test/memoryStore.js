@@ -12,7 +12,7 @@ function createMemoryStore() {
         duplicate.code = 'DUPLICATE';
         throw duplicate;
       }
-      const user = { id: nextId++, email, name, passwordHash, role };
+      const user = { id: nextId++, email, name, passwordHash, role, createdAt: new Date() };
       users.push(user);
       return { ...user };
     },
@@ -27,7 +27,23 @@ function createMemoryStore() {
     async isRevoked(jti) {
       return revoked.has(jti);
     },
+    async listUsers() {
+      return users.map((u) => ({ ...u }));
+    },
+    async deleteUser(id) {
+      const index = users.findIndex((u) => u.id === id);
+      if (index === -1) return false;
+      users.splice(index, 1);
+      return true;
+    },
+    async revokeToken(jti) {
+      revoked.add(jti);
+    },
+    async purgeExpiredTokens() {
+      return 0;
+    },
 
+    // Aides réservées aux tests
     revoke(jti) {
       revoked.add(jti);
     },

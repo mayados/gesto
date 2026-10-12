@@ -4,14 +4,14 @@ services:
   frontend:
     image: nginx:1.27-alpine
     ports:
-      - "${FRONTEND_PORT:-8080}:80"  
+      - "${FRONTEND_PORT:-8080}:80"   
     networks:
       - public    
       - backend   
     restart: unless-stopped
 
   accounts:
-    build: ./backend/accounts         
+    build: ./backend/accounts          
     environment:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-2h}
@@ -20,12 +20,16 @@ services:
       DB_NAME: gesto_accounts
       DB_USER: accounts
       DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD:?ACCOUNTS_DB_PASSWORD manquant dans .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL manquant dans .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD manquant dans .env}
+      TASKS_URL: http://tasks:8002          
+      PROJECTS_URL: http://projects:8001
     depends_on:
       db:
-        condition: service_healthy     # attend que la base soit prête
+        condition: service_healthy    
     networks:
-      - backend   
-      - data     
+      - backend  
+      - data      
     restart: unless-stopped
 
   db:
@@ -38,20 +42,20 @@ services:
     volumes:
       - db-data:/var/lib/mysql                    
       - ./db/init:/docker-entrypoint-initdb.d:ro  
-    healthcheck:                         
+    healthcheck:                        
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     networks:
-      - data      
+      - data     
     restart: unless-stopped
 
 networks:
   public:
   backend:
-    internal: true   
+    internal: true  
   data:
     internal: true
 
