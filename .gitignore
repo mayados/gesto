@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+/backend/projects/.env
+/backend/projects/.env.dev
+
 # Node.js
 node_modules/
 
