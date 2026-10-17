@@ -35,6 +35,35 @@ services:
       - data      
     restart: unless-stopped
 
+  projects:
+    build: ./backend/projects
+    environment:
+      APP_ENV: test
+      APP_SECRET: ${PROJECTS_APP_SECRET:?PROJECTS_APP_SECRET manquant dans .env}
+      DATABASE_URL: "mysql://projects:${PROJECTS_DB_PASSWORD:?PROJECTS_DB_PASSWORD manquant dans .env}@db:3306/gesto_projects?serverVersion=mariadb-12.3.0&charset=utf8mb4"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - data
+    restart: unless-stopped
+  
+  tasks:
+    build: ./backend/tasks
+    environment:
+      APP_ENV: production
+      APP_SECRET: ${TASKS_APP_SECRET:?TASKS_APP_SECRET manquant dans .env}
+      DATABASE_URL: "mysql://tasks:${TASKS_DB_PASSWORD:?TASKS_DB_PASSWORD manquant dans .env}@db:3306/gesto_tasks?serverVersion=mariadb-12.3.0&charset=utf8mb4"
+      PROJECTS_URL: http://projects:8001
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - data
+    restart: unless-stopped
+
   db:
     image: mariadb:12.3
     environment:
