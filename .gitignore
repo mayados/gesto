@@ -24,6 +24,7 @@ Thumbs.db
 ###> symfony/framework-bundle PROJECT ###
 /backend/projects/.env
 /backend/projects/.env.dev
+/backend/projects/.env.test
 /backend/projects/.env.local
 /backend/projects/.env.local.php
 /backend/projects/.env.*.local
