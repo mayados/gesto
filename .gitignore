@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+/backend/projects/.env
+/backend/projects/.env.dev
+
 # Node.js
 node_modules/
 
@@ -17,3 +20,16 @@ var/
 .idea/
 .DS_Store
 Thumbs.db
+
+###> symfony/framework-bundle PROJECT ###
+/backend/projects/.env
+/backend/projects/.env.dev
+/backend/projects/.env.test
+/backend/projects/.env.local
+/backend/projects/.env.local.php
+/backend/projects/.env.*.local
+/backend/projects/config/secrets/prod/prod.decrypt.private.php
+/backend/projects/public/bundles/
+/backend/projects/var/
+/backend/projects/vendor/
+###< symfony/framework-bundle ###
