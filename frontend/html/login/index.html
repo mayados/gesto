@@ -3,11 +3,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../styles/styles.css">
   <title>Connexion · Gesto</title>
 </head>
-<body>
+<body class="body-login">
   <h1>Connexion</h1>
   <p>Page de connexion et de création de compte (publique).</p>
   <nav><a href="/">Accueil</a> · <a href="/login">Connexion</a> · <a href="/app/">Mes projets</a> · <a href="/admin/">Administration</a></nav>
+  <!-- Formulaire de Connexion -->
+    <form id="login-form" class="form-section active">
+      <div class="form-group">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="login-password">Mot de passe</label>
+        <input type="password" id="login-password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="submit-btn">Se connecter</button>
+    </form>
+
+    <!-- Formulaire d'Inscription -->
+    <form id="register-form" class="form-section">
+      <div class="form-group">
+        <label for="register-name">Nom</label>
+        <input type="text" id="register-name" required autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label for="register-email">Email</label>
+        <input type="email" id="register-email" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="register-password">Mot de passe (8 caractères min)</label>
+        <input type="password" id="register-password" required minlength="8" autocomplete="new-password">
+      </div>
+      <button type="submit" class="submit-btn">Créer un compte</button>
+    </form>
+  </div>
+
+  <script src="../js/login.js" defer></script>
 </body>
 </html>
