@@ -33,3 +33,13 @@ Thumbs.db
 /backend/projects/var/
 /backend/projects/vendor/
 ###< symfony/framework-bundle ###
+
+###> symfony/framework-bundle TASKS ###
+/backend/tasks/.env.local
+/backend/tasks/.env.local.php
+/backend/tasks/.env.*.local
+/backend/tasks/config/secrets/prod/prod.decrypt.private.php
+/backend/tasks/public/bundles/
+/backend/tasks/var/
+/backend/tasks/vendor/
+###< symfony/framework-bundle ###
