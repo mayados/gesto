@@ -41,6 +41,7 @@ services:
       APP_ENV: prod
       APP_DEBUG: "0"
       TASKS_URL: http://tasks:8002
+      DEFAULT_URI: http://projects:8001
       APP_SECRET: ${PROJECTS_APP_SECRET:?PROJECTS_APP_SECRET manquant dans .env}
       DATABASE_URL: "mysql://projects:${PROJECTS_DB_PASSWORD:?PROJECTS_DB_PASSWORD manquant dans .env}@db:3306/gesto_projects?serverVersion=mariadb-12.3.0&charset=utf8mb4"
     depends_on:
@@ -59,6 +60,7 @@ services:
       APP_SECRET: ${TASKS_APP_SECRET:?TASKS_APP_SECRET manquant dans .env}
       DATABASE_URL: "mysql://tasks:${TASKS_DB_PASSWORD:?TASKS_DB_PASSWORD manquant dans .env}@db:3306/gesto_tasks?serverVersion=mariadb-12.3.0&charset=utf8mb4"
       PROJECTS_URL: http://projects:8001
+      DEFAULT_URI: http://tasks:8002
     depends_on:
       db:
         condition: service_healthy
