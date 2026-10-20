@@ -8,7 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: TaskRepository::class)]
 #[ORM\Table(name: 'tasks')]
-class Task
+class Task implements \JsonSerializable
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -94,5 +94,20 @@ class Task
     {
         $this->createdAt = $createdAt;
         return $this;
+    }
+
+    /**
+     * Format de la réponse JSON, défini par le contrat d'API (docs/api.md).
+     * Le user_id n'est volontairement pas exposé.
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'projectId' => $this->projectId,
+            'title' => $this->title,
+            'done' => $this->done,
+            'created_at' => $this->createdAt?->format(\DateTimeInterface::ATOM),
+        ];
     }
 }

@@ -5,39 +5,37 @@ namespace App\Controller;
 use App\Repository\TaskRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/internal/tasks')]
+/**
+ * Routes internes (docs/api.md, section 5) : appelées par les autres services,
+ * jamais exposées par nginx.
+ */
+#[Route('/internal')]
 class InternalTaskController extends AbstractController
 {
-    // Route appelée lors de la suppression d'un projet pour nettoyer ses tâches
-    #[Route('/project/{projectId<\d+>}', name: 'internal_tasks_delete_by_project', methods: ['DELETE'])]
-    public function deleteByProject(int $projectId, TaskRepository $taskRepository, EntityManagerInterface $entityManager): JsonResponse
+    // Appelée par projects quand un projet est supprimé.
+    #[Route('/projects/{projectId<\d+>}/tasks', name: 'internal_tasks_delete_by_project', methods: ['DELETE'])]
+    public function deleteByProject(int $projectId, TaskRepository $taskRepository, EntityManagerInterface $entityManager): Response
     {
-        $tasks = $taskRepository->findBy(['projectId' => $projectId]);
-
-        foreach ($tasks as $task) {
+        foreach ($taskRepository->findBy(['projectId' => $projectId]) as $task) {
             $entityManager->remove($task);
         }
-
         $entityManager->flush();
 
-        return $this->json(['message' => 'Tasks deleted successfully for project']);
+        return new Response(null, Response::HTTP_NO_CONTENT);
     }
 
-    // Route appelée par accounts lors de la suppression en cascade d'un compte
-    #[Route('/user/{userId<\d+>}', name: 'internal_tasks_delete_by_user', methods: ['DELETE'])]
-    public function deleteByUser(int $userId, TaskRepository $taskRepository, EntityManagerInterface $entityManager): JsonResponse
+    // Appelée par accounts lors de la suppression en cascade d'un compte.
+    #[Route('/users/{userId<\d+>}/tasks', name: 'internal_tasks_delete_by_user', methods: ['DELETE'])]
+    public function deleteByUser(int $userId, TaskRepository $taskRepository, EntityManagerInterface $entityManager): Response
     {
-        $tasks = $taskRepository->findBy(['userId' => $userId]);
-
-        foreach ($tasks as $task) {
+        foreach ($taskRepository->findBy(['userId' => $userId]) as $task) {
             $entityManager->remove($task);
         }
-
         $entityManager->flush();
 
-        return $this->json(['message' => 'Tasks deleted successfully for user']);
+        return new Response(null, Response::HTTP_NO_CONTENT);
     }
 }
