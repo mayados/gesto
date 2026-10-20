@@ -3,9 +3,6 @@
 .env.local
 .env.*.local
 
-/backend/projects/.env
-/backend/projects/.env.dev
-
 # Node.js
 node_modules/
 
@@ -22,9 +19,6 @@ var/
 Thumbs.db
 
 ###> symfony/framework-bundle PROJECT ###
-/backend/projects/.env
-/backend/projects/.env.dev
-/backend/projects/.env.test
 /backend/projects/.env.local
 /backend/projects/.env.local.php
 /backend/projects/.env.*.local
@@ -32,6 +26,8 @@ Thumbs.db
 /backend/projects/public/bundles/
 /backend/projects/var/
 /backend/projects/vendor/
+/backend/projects/phpunit.xml
+/backend/projects/.phpunit.cache/
 ###< symfony/framework-bundle ###
 
 ###> symfony/framework-bundle TASKS ###
@@ -42,4 +38,6 @@ Thumbs.db
 /backend/tasks/public/bundles/
 /backend/tasks/var/
 /backend/tasks/vendor/
+/backend/tasks/phpunit.xml
+/backend/tasks/.phpunit.cache/
 ###< symfony/framework-bundle ###

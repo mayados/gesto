@@ -12,95 +12,151 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+/**
+ * Routes protégées de tasks (docs/api.md, section 5).
+ * L'identité de l'utilisateur vient de l'en-tête X-User-Id posé par nginx :
+ * ce service ne lit jamais le jeton.
+ */
 #[Route('/api/tasks')]
 class TaskController extends AbstractController
 {
-    private HttpClientInterface $httpClient;
+    private const TITLE_MAX = 255;
 
-    public function __construct(HttpClientInterface $httpClient)
+    public function __construct(private readonly HttpClientInterface $httpClient)
     {
-        $this->httpClient = $httpClient;
+    }
+
+    /** Identifiant de l'utilisateur, ou null si l'en-tête est absent ou invalide. */
+    private function userId(Request $request): ?int
+    {
+        $value = $request->headers->get('X-User-Id');
+
+        return ($value !== null && ctype_digit($value) && (int) $value > 0) ? (int) $value : null;
+    }
+
+    private function unauthorized(): JsonResponse
+    {
+        return $this->json(['error' => 'Non connecté'], Response::HTTP_UNAUTHORIZED);
+    }
+
+    /** Corps JSON sous forme de tableau, ou null s'il est invalide. */
+    private function body(Request $request): ?array
+    {
+        $data = json_decode($request->getContent(), true);
+
+        return is_array($data) ? $data : null;
+    }
+
+    /** Identifiant de projet valide (entier positif, en nombre ou en texte), sinon null. */
+    private function projectId(mixed $value): ?int
+    {
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+        if (is_string($value) && ctype_digit($value) && (int) $value > 0) {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    /** Message d'erreur si le titre est invalide, null sinon. */
+    private function titleError(mixed $title): ?string
+    {
+        if (!is_string($title) || trim($title) === '') {
+            return 'Le titre est obligatoire';
+        }
+        if (mb_strlen(trim($title)) > self::TITLE_MAX) {
+            return 'Le titre ne doit pas dépasser '.self::TITLE_MAX.' caractères';
+        }
+
+        return null;
     }
 
     /**
-     * Vérifie via le service projects si le projet appartient bien à l'utilisateur.
+     * Demande au service projects si le projet existe et appartient à l'utilisateur.
+     * Renvoie null si tout est correct, sinon la réponse d'erreur à retourner :
+     *  - 404 si le projet n'existe pas ou appartient à quelqu'un d'autre (on ne révèle pas son existence) ;
+     *  - 502 si le service projects ne répond pas.
      */
-    private function verifyProjectOwner(int $projectId, int $userId): ?JsonResponse
+    private function checkProjectOwner(int $projectId, int $userId): ?JsonResponse
     {
-        $projectsUrl = $_ENV['PROJECTS_URL'] ?? 'http://projects:8001';
+        $projectsUrl = rtrim($_SERVER['PROJECTS_URL'] ?? getenv('PROJECTS_URL') ?: 'http://projects:8001', '/');
 
         try {
-            $response = $this->httpClient->request('GET', "{$projectsUrl}/internal/projects/{$projectId}");
-            
-            if ($response->getStatusCode() !== 200) {
-                return $this->json(['error' => 'Project not found'], Response::HTTP_NOT_FOUND);
+            $response = $this->httpClient->request('GET', "{$projectsUrl}/internal/projects/{$projectId}", ['timeout' => 5]);
+            $status = $response->getStatusCode();
+
+            if ($status === Response::HTTP_NOT_FOUND) {
+                return $this->json(['error' => 'Projet introuvable'], Response::HTTP_NOT_FOUND);
+            }
+            if ($status !== Response::HTTP_OK) {
+                return $this->json(['error' => 'Le service projects a répondu une erreur'], Response::HTTP_BAD_GATEWAY);
             }
 
-            $projectData = $response->toArray();
-
-            // Règle de l'énoncé : si le projet n'appartient pas à l'utilisateur, on renvoie 404 pour masquer son existence
-            if (!isset($projectData['user_id']) || (int) $projectData['user_id'] !== $userId) {
-                return $this->json(['error' => 'Project not found'], Response::HTTP_NOT_FOUND);
-            }
-
-        } catch (\Exception $e) {
-            return $this->json(['error' => 'Service projects unavailable'], Response::HTTP_SERVICE_UNAVAILABLE);
+            $project = $response->toArray();
+        } catch (\Throwable) {
+            return $this->json(['error' => 'Le service projects ne répond pas'], Response::HTTP_BAD_GATEWAY);
         }
 
-        return null; // Tout est valide
+        if ((int) ($project['user_id'] ?? 0) !== $userId) {
+            return $this->json(['error' => 'Projet introuvable'], Response::HTTP_NOT_FOUND);
+        }
+
+        return null;
     }
 
     #[Route('', name: 'task_index', methods: ['GET'])]
     public function index(Request $request, TaskRepository $taskRepository): JsonResponse
     {
-        $userId = $request->headers->get('X-User-Id');
-        if (!$userId) {
-            return $this->json(['error' => 'Unauthorized - Missing X-User-Id header'], Response::HTTP_UNAUTHORIZED);
+        $userId = $this->userId($request);
+        if ($userId === null) {
+            return $this->unauthorized();
         }
 
-        $projectId = $request->query->get('project_id');
-        if (!$projectId) {
-            return $this->json(['error' => 'Missing project_id query parameter'], Response::HTTP_BAD_REQUEST);
+        $projectId = $this->projectId($request->query->get('projectId'));
+        if ($projectId === null) {
+            return $this->json(['error' => 'Le paramètre projectId est obligatoire'], Response::HTTP_BAD_REQUEST);
         }
 
-        // Vérifier que le projet appartient bien à l'utilisateur
-        if ($errorResponse = $this->verifyProjectOwner((int) $projectId, (int) $userId)) {
-            return $errorResponse;
+        if ($error = $this->checkProjectOwner($projectId, $userId)) {
+            return $error;
         }
 
-        $tasks = $taskRepository->findBy([
-            'projectId' => (int) $projectId,
-            'userId' => (int) $userId
-        ]);
-
-        return $this->json($tasks);
+        return $this->json($taskRepository->findBy(['projectId' => $projectId, 'userId' => $userId], ['id' => 'ASC']));
     }
 
     #[Route('', name: 'task_create', methods: ['POST'])]
     public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
-        $userId = $request->headers->get('X-User-Id');
-        if (!$userId) {
-            return $this->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
+        $userId = $this->userId($request);
+        if ($userId === null) {
+            return $this->unauthorized();
         }
 
-        $data = json_decode($request->getContent(), true);
-
-        if (empty($data['project_id']) || empty($data['title'])) {
-            return $this->json(['error' => 'Project ID and title are required'], Response::HTTP_BAD_REQUEST);
+        $data = $this->body($request);
+        if ($data === null) {
+            return $this->json(['error' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
+        }
+        $projectId = $this->projectId($data['projectId'] ?? null);
+        if ($projectId === null) {
+            return $this->json(['error' => 'projectId est obligatoire'], Response::HTTP_BAD_REQUEST);
+        }
+        if ($error = $this->titleError($data['title'] ?? null)) {
+            return $this->json(['error' => $error], Response::HTTP_BAD_REQUEST);
+        }
+        if (isset($data['done']) && !is_bool($data['done'])) {
+            return $this->json(['error' => 'done doit être un booléen'], Response::HTTP_BAD_REQUEST);
         }
 
-        $projectId = (int) $data['project_id'];
-
-        // Vérifier que le projet appartient bien à l'utilisateur
-        if ($errorResponse = $this->verifyProjectOwner($projectId, (int) $userId)) {
-            return $errorResponse;
+        if ($error = $this->checkProjectOwner($projectId, $userId)) {
+            return $error;
         }
 
         $task = new Task();
         $task->setProjectId($projectId);
-        $task->setUserId((int) $userId);
-        $task->setTitle($data['title']);
+        $task->setUserId($userId);
+        $task->setTitle(trim($data['title']));
         $task->setDone($data['done'] ?? false);
 
         $entityManager->persist($task);
@@ -109,64 +165,60 @@ class TaskController extends AbstractController
         return $this->json($task, Response::HTTP_CREATED);
     }
 
-    #[Route('/{id<\d+>}', name: 'task_delete', methods: ['DELETE'])]
-    public function delete(int $id, Request $request, TaskRepository $taskRepository, EntityManagerInterface $entityManager): JsonResponse
-    {
-        $userId = $request->headers->get('X-User-Id');
-        if (!$userId) {
-            return $this->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        $task = $taskRepository->findOneBy([
-            'id' => $id,
-            'userId' => (int) $userId
-        ]);
-
-        if (!$task) {
-            return $this->json(['error' => 'Task not found'], Response::HTTP_NOT_FOUND);
-        }
-
-        $entityManager->remove($task);
-        $entityManager->flush();
-
-        return $this->json(['message' => 'Task deleted successfully']);
-    }
-
     #[Route('/{id<\d+>}', name: 'task_update', methods: ['PUT', 'PATCH'])]
     public function update(int $id, Request $request, TaskRepository $taskRepository, EntityManagerInterface $entityManager): JsonResponse
     {
-        $userId = $request->headers->get('X-User-Id');
-        if (!$userId) {
-            return $this->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
+        $userId = $this->userId($request);
+        if ($userId === null) {
+            return $this->unauthorized();
         }
 
-        // Récupérer la tâche en s'assurant qu'elle appartient bien à l'utilisateur connecté
-        $task = $taskRepository->findOneBy([
-            'id' => $id,
-            'userId' => (int) $userId
-        ]);
-
+        // Une tâche qui appartient à quelqu'un d'autre répond 404 (et non 403).
+        $task = $taskRepository->findOneBy(['id' => $id, 'userId' => $userId]);
         if (!$task) {
-            return $this->json(['error' => 'Task not found'], Response::HTTP_NOT_FOUND);
+            return $this->json(['error' => 'Tâche introuvable'], Response::HTTP_NOT_FOUND);
         }
 
-        $data = json_decode($request->getContent(), true);
+        $data = $this->body($request);
+        if ($data === null) {
+            return $this->json(['error' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
+        }
 
-        // Mettre à jour le titre s'il est fourni
-        if (isset($data['title'])) {
-            if (empty(trim($data['title']))) {
-                return $this->json(['error' => 'Title cannot be empty'], Response::HTTP_BAD_REQUEST);
+        // Les deux champs sont facultatifs : on ne modifie que ceux qui sont envoyés.
+        if (array_key_exists('title', $data)) {
+            if ($error = $this->titleError($data['title'])) {
+                return $this->json(['error' => $error], Response::HTTP_BAD_REQUEST);
             }
-            $task->setTitle($data['title']);
+            $task->setTitle(trim($data['title']));
         }
-
-        // Mettre à jour l'état "done" s'il est fourni
-        if (isset($data['done'])) {
-            $task->setDone((bool) $data['done']);
+        if (array_key_exists('done', $data)) {
+            if (!is_bool($data['done'])) {
+                return $this->json(['error' => 'done doit être un booléen'], Response::HTTP_BAD_REQUEST);
+            }
+            $task->setDone($data['done']);
         }
 
         $entityManager->flush();
 
         return $this->json($task);
+    }
+
+    #[Route('/{id<\d+>}', name: 'task_delete', methods: ['DELETE'])]
+    public function delete(int $id, Request $request, TaskRepository $taskRepository, EntityManagerInterface $entityManager): Response
+    {
+        $userId = $this->userId($request);
+        if ($userId === null) {
+            return $this->unauthorized();
+        }
+
+        $task = $taskRepository->findOneBy(['id' => $id, 'userId' => $userId]);
+        if (!$task) {
+            return $this->json(['error' => 'Tâche introuvable'], Response::HTTP_NOT_FOUND);
+        }
+
+        $entityManager->remove($task);
+        $entityManager->flush();
+
+        return new Response(null, Response::HTTP_NO_CONTENT);
     }
 }
