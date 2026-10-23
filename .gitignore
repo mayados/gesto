@@ -21,7 +21,6 @@ Thumbs.db
 ###> symfony/framework-bundle PROJECT ###
 /backend/projects/.env.local
 /backend/projects/.env.local.php
-/backend/projects/.env
 /backend/projects/config/secrets/prod/prod.decrypt.private.php
 /backend/projects/public/bundles/
 /backend/projects/var/
@@ -33,7 +32,6 @@ Thumbs.db
 ###> symfony/framework-bundle TASKS ###
 /backend/tasks/.env.local
 /backend/tasks/.env.local.php
-/backend/tasks/.env
 /backend/tasks/config/secrets/prod/prod.decrypt.private.php
 /backend/tasks/public/bundles/
 /backend/tasks/var/
