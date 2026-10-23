@@ -1,0 +1,13 @@
+.git
+.gitignore
+.editorconfig
+Dockerfile
+.dockerignore
+compose.yaml
+compose.override.yaml
+phpunit.dist.xml
+tests
+var
+vendor
+.env.local
+.env.*.local
