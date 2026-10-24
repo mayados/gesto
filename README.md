@@ -8,3 +8,6 @@ Application web de gestion de tâches organisées par projets, en micro-services
 - backend/projects : PHP / Symfony
 - backend/tasks : PHP / Symfony
 - db : MariaDB
+
+## Démarrer l'application la première fois : 
+docker compose up -d --build
