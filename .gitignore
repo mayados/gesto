@@ -2,6 +2,9 @@
 /.env
 .env.local
 .env.*.local
+/.env.test
+/.env.uat
+/.env.prod
 
 # Node.js
 node_modules/
