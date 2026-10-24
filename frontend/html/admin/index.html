@@ -3,11 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../styles/styles.css">
   <title>Administration · Gesto</title>
 </head>
-<body>
-  <h1>Administration</h1>
+<body class="body-admin">
   <p>Page réservée aux utilisateurs connectés (le rôle admin est contrôlé par l'API).</p>
   <nav><a href="/">Accueil</a> · <a href="/login">Connexion</a> · <a href="/app/">Mes projets</a> · <a href="/admin/">Administration</a></nav>
+
+  <div class="app-container">
+    <header class="app-header">
+      <h1>Administration des comptes</h1>
+      <div class="user-actions">
+        <a href="/app/" class="btn-secondary" style="padding: 0.5rem 0.75rem; border-radius: 6px; text-decoration: none;">Mes Projets</a>
+        <button id="logout-btn" class="btn-secondary">Se déconnecter</button>
+      </div>
+    </header>
+
+    <div id="alert-box" class="alert"></div>
+
+    <section class="card-section" style="max-width: 100%;">
+      <h2>Liste des utilisateurs</h2>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;" id="users-table">
+          <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; color: #64748b;">
+              <th style="padding: 0.75rem;">ID</th>
+              <th style="padding: 0.75rem;">Nom</th>
+              <th style="padding: 0.75rem;">Email</th>
+              <th style="padding: 0.75rem;">Rôle</th>
+              <th style="padding: 0.75rem;">Créé le</th>
+              <th style="padding: 0.75rem; text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <!-- Les utilisateurs seront injectés dynamiquement ici -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="../js/admin.js" defer></script>
 </body>
 </html>

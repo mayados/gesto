@@ -1,0 +1,162 @@
+.body-admin {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color, #f8fafc);
+  color: var(--text-color, #1e293b);
+  margin: 0;
+  padding: 1.5rem;
+  min-height: 100vh;
+  box-sizing: border-box;
+
+  p {
+    color: #64748b;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  nav {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+
+    a {
+      color: var(--primary, #3b82f6);
+      text-decoration: none;
+      margin: 0 0.25rem;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .app-container {
+    max-width: 1000px;
+    margin: 0 auto;
+
+    .app-header {
+      background: var(--card-bg, #ffffff);
+      padding: 1.25rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+
+      h1 {
+        font-size: 1.5rem;
+        margin: 0;
+        color: var(--text-color, #1e293b);
+      }
+
+      .user-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.875rem;
+        color: #64748b;
+
+        a, button {
+          padding: 0.5rem 0.75rem;
+          border-radius: 6px;
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          border: none;
+          transition: background-color 0.2s;
+        }
+
+        .btn-secondary {
+          background-color: #e2e8f0;
+          color: #334155;
+          text-decoration: none;
+          display: inline-block;
+
+          &:hover {
+            background-color: #cbd5e1;
+          }
+        }
+      }
+    }
+
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+      display: none;
+
+      &.error {
+        background-color: var(--error-bg, #fee2e2);
+        color: var(--error-text, #991b1b);
+      }
+
+      &.success {
+        background-color: var(--success-bg, #dcfce7);
+        color: var(--success-text, #166534);
+      }
+    }
+
+    .card-section {
+      background: var(--card-bg, #ffffff);
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+
+      h2 {
+        font-size: 1.2rem;
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: var(--text-color, #1e293b);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.9rem;
+
+        thead {
+          tr {
+            border-bottom: 2px solid #e2e8f0;
+            color: #64748b;
+          }
+        }
+
+        tbody {
+          tr {
+            border-bottom: 1px solid #f1f5f9;
+            transition: background-color 0.2s ease;
+
+            &:hover {
+              background-color: #f8fafc;
+            }
+          }
+        }
+
+        th, td {
+          padding: 0.75rem;
+        }
+      }
+
+      .btn-delete {
+        background: none;
+        border: none;
+        color: #ef4444;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+
+        &:hover {
+          background-color: #fee2e2;
+        }
+      }
+    }
+  }
+}
