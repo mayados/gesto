@@ -1,6 +1,5 @@
 name: Pipeline d'un service
 
-# Workflow réutilisable : ci.yml l'appelle une fois par service.
 on:
   workflow_call:
     inputs:
@@ -9,13 +8,23 @@ on:
         type: string
         required: true
       language:
-        description: Langage du service (node ou php)
+        description: Langage du service (node, php, ou none s'il n'y a pas de tests unitaires)
         type: string
         required: true
       port:
         description: Port d'écoute du service dans le conteneur
         type: string
         required: true
+      context:
+        description: Dossier du Dockerfile (par défaut backend/<service>)
+        type: string
+        required: false
+        default: ''
+      healthpath:
+        description: Adresse testée par le test de fumée
+        type: string
+        required: false
+        default: /health
 
 jobs:
   test:
@@ -23,9 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend/${{ inputs.service }}
+        working-directory: ${{ inputs.language == 'none' && '.' || format('backend/{0}', inputs.service) }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Aucun test unitaire pour ce service
+        if: inputs.language == 'none'
+        run: echo "Aucun test unitaire pour ce service (pas de logique applicative)"
 
       - name: Installer Node.js
         if: inputs.language == 'node'
@@ -53,15 +66,17 @@ jobs:
 
       - name: Installer les dépendances
         if: inputs.language == 'php'
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
 
       - name: Lancer les tests unitaires
         if: inputs.language == 'php'
+        env:
+          DATABASE_URL: "mysql://ci:ci@127.0.0.1:3306/ci?serverVersion=mariadb-12.3.0&charset=utf8mb4"
         run: vendor/bin/phpunit
 
   image:
     name: Image Docker (${{ inputs.service }})
-    needs: test   # ne démarre que si les tests ont réussi
+    needs: test   
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -69,10 +84,11 @@ jobs:
     env:
       SERVICE: ${{ inputs.service }}
       PORT: ${{ inputs.port }}
+      CONTEXT: ${{ inputs.context || format('backend/{0}', inputs.service) }}
+      HEALTHPATH: ${{ inputs.healthpath }}
     steps:
       - uses: actions/checkout@v6
 
-      # Les noms d'images GHCR doivent être en minuscules.
       - name: Calculer le nom de l'image
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/gesto-${SERVICE}" >> "$GITHUB_ENV"
 
@@ -96,11 +112,10 @@ jobs:
             type=sha
             type=ref,event=tag
 
-      # Première construction : l'image reste en local pour pouvoir la tester avant de la publier.
       - name: Construire l'image
         uses: docker/build-push-action@v7
         with:
-          context: backend/${{ inputs.service }}
+          context: ${{ env.CONTEXT }}
           load: true
           push: false
           tags: ${{ steps.meta.outputs.tags }}
@@ -108,7 +123,6 @@ jobs:
           cache-from: type=gha,scope=${{ inputs.service }}
           cache-to: type=gha,mode=max,scope=${{ inputs.service }}
 
-      # Test de fumée : le conteneur démarre, répond sur /health et ne tourne pas en root.
       - name: Tester le conteneur
         env:
           TAG: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
@@ -118,18 +132,17 @@ jobs:
             -e APP_SECRET=ci -e DATABASE_URL=mysql://ci:ci@localhost:3306/ci \
             -p "8080:${PORT}" "$TAG"
           for i in $(seq 1 20); do
-            if curl -fsS http://localhost:8080/health; then echo; break; fi
+            if curl -fsS "http://localhost:8080${HEALTHPATH}"; then echo; break; fi
             if [ "$i" = 20 ]; then docker logs smoke; exit 1; fi
             sleep 1
           done
           test "$(docker exec smoke id -u)" != "0" || { echo "Le conteneur tourne en root"; exit 1; }
           docker stop smoke
 
-      # Seconde construction : mêmes paramètres (le cache la rend quasi instantanée), cette fois avec publication.
       - name: Publier l'image sur GHCR
         uses: docker/build-push-action@v7
         with:
-          context: backend/${{ inputs.service }}
+          context: ${{ env.CONTEXT }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -30,3 +30,12 @@ jobs:
       service: tasks
       language: php
       port: 8002
+
+  frontend:
+    uses: ./.github/workflows/service.yml
+    with:
+      service: frontend
+      language: none
+      port: 8080
+      context: frontend
+      healthpath: /login
