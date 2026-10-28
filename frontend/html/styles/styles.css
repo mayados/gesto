@@ -588,3 +588,24 @@
 .body-admin .app-container .card-section .btn-delete:hover {
   background-color: #fee2e2;
 }
+body > p {
+  color: #64748b;
+  text-align: center;
+  font-size: 0.9rem;
+}
+body nav {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+body nav a {
+  text-decoration: none;
+  color: #2442ee;
+}
+body nav a:hover {
+  text-decoration: underline;
+  color: #12206e;
+}
+body nav a:link {
+  color: #2442ee;
+}
