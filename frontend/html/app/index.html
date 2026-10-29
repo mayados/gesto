@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../styles/styles.css">
+  <title>Mes projets · Gesto</title>
+</head>
+
+<body class="body-app">
+  <p>Page réservée aux utilisateurs connectés.</p>
+  <nav><a href="/">Accueil</a> · <a href="/login">Connexion</a> · <a href="/app/">Mes projets</a> · <a href="/admin/">Administration</a></nav>
+
+  <div class="app-container">
+    <header class="app-header">
+      <h1>Gestion des Projets</h1>
+      <div class="user-actions">
+        <span id="user-profile-name">Chargement...</span>
+        <button id="logout-btn" class="btn-secondary">Se déconnecter</button>
+        <button id="delete-account-btn" class="btn-danger">Supprimer mon compte</button>
+      </div>
+    </header>
+
+    <div id="alert-box" class="alert"></div>
+
+    <div class="app-grid">
+      <!-- Section Projets -->
+      <section class="card-section">
+        <h2>Mes Projets</h2>
+        <form id="create-project-form" class="inline-form">
+          <input type="text" id="project-name" placeholder="Nom du nouveau projet" required maxlength="100">
+          <button type="submit" class="submit-btn">Créer</button>
+        </form>
+        <ul id="projects-list" class="item-list">
+          <!-- Les projets seront injectés dynamiquement ici -->
+        </ul>
+      </section>
+
+      <!-- Section Tâches -->
+      <section class="card-section" id="tasks-section" style="opacity: 0.5; pointer-events: none;">
+        <h2 id="tasks-title">Sélectionnez un projet</h2>
+        <form id="create-task-form" class="inline-form">
+          <input type="text" id="task-title" placeholder="Nouvelle tâche..." required maxlength="255">
+          <button type="submit" class="submit-btn">Ajouter</button>
+        </form>
+        <ul id="tasks-list" class="item-list">
+          <!-- Les tâches du projet sélectionné seront injectées ici -->
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <script src="../js/app.js" defer></script>
+</body>
+
+</html>

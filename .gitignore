@@ -2,6 +2,9 @@
 /.env
 .env.local
 .env.*.local
+/.env.test
+/.env.uat
+/.env.prod
 
 # Node.js
 node_modules/
@@ -17,3 +20,25 @@ var/
 .idea/
 .DS_Store
 Thumbs.db
+
+###> symfony/framework-bundle PROJECT ###
+/backend/projects/.env.local
+/backend/projects/.env.local.php
+/backend/projects/config/secrets/prod/prod.decrypt.private.php
+/backend/projects/public/bundles/
+/backend/projects/var/
+/backend/projects/vendor/
+/backend/projects/phpunit.xml
+/backend/projects/.phpunit.cache/
+###< symfony/framework-bundle ###
+
+###> symfony/framework-bundle TASKS ###
+/backend/tasks/.env.local
+/backend/tasks/.env.local.php
+/backend/tasks/config/secrets/prod/prod.decrypt.private.php
+/backend/tasks/public/bundles/
+/backend/tasks/var/
+/backend/tasks/vendor/
+/backend/tasks/phpunit.xml
+/backend/tasks/.phpunit.cache/
+###< symfony/framework-bundle ###

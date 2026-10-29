@@ -1,0 +1,73 @@
+.body-home {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color, #f8fafc);
+  color: var(--text-color, #1e293b);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+
+  .home-card {
+    background: var(--card-bg, #ffffff);
+    padding: 2.5rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+    box-sizing: border-box;
+
+    h1 {
+      font-size: 2rem;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      color: var(--text-color, #1e293b);
+      font-weight: 700;
+    }
+
+    p {
+      color: #64748b;
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+
+    nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      a {
+        display: block;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+
+        // Style pour les liens de navigation principaux (mise en valeur)
+        background-color: #f1f5f9;
+        color: #334155;
+
+        &:hover {
+          background-color: #e2e8f0;
+          color: var(--primary, #3b82f6);
+        }
+
+        // Si tu veux mettre un lien spécial (ex: connexion en primary)
+        &.btn-primary-link {
+          background-color: var(--primary, #3b82f6);
+          color: white;
+
+          &:hover {
+            background-color: var(--primary-hover, #2563eb);
+          }
+        }
+      }
+    }
+  }
+}

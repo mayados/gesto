@@ -1,0 +1,125 @@
+name: gesto
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - public
+      - backend
+    deploy:                            
+      resources:
+        limits:
+          cpus: "${FRONTEND_CPUS:-0.25}"
+          memory: ${FRONTEND_MEM:-128M}
+    restart: unless-stopped
+
+  accounts:
+    build: ./backend/accounts
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-2h}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      DB_HOST: db
+      DB_NAME: gesto_accounts
+      DB_USER: accounts
+      DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD:?ACCOUNTS_DB_PASSWORD manquant dans .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL manquant dans .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD manquant dans .env}
+      TASKS_URL: http://tasks:8002
+      PROJECTS_URL: http://projects:8001
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - data
+    deploy:                            
+      resources:
+        limits:
+          cpus: "${ACCOUNTS_CPUS:-0.50}"
+          memory: ${ACCOUNTS_MEM:-256M}
+    restart: unless-stopped
+
+  projects:
+    build: ./backend/projects
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      TASKS_URL: http://tasks:8002
+      DEFAULT_URI: http://projects:8001
+      APP_SECRET: ${PROJECTS_APP_SECRET:?PROJECTS_APP_SECRET manquant dans .env}
+      DATABASE_URL: "mysql://projects:${PROJECTS_DB_PASSWORD:?PROJECTS_DB_PASSWORD manquant dans .env}@db:3306/gesto_projects?serverVersion=mariadb-12.3.0&charset=utf8mb4"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - data
+    deploy:                            
+      resources:
+        limits:
+          cpus: "${PROJECTS_CPUS:-0.50}"
+          memory: ${PROJECTS_MEM:-256M}
+    restart: unless-stopped
+
+  tasks:
+    build: ./backend/tasks
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      APP_SECRET: ${TASKS_APP_SECRET:?TASKS_APP_SECRET manquant dans .env}
+      DATABASE_URL: "mysql://tasks:${TASKS_DB_PASSWORD:?TASKS_DB_PASSWORD manquant dans .env}@db:3306/gesto_tasks?serverVersion=mariadb-12.3.0&charset=utf8mb4"
+      PROJECTS_URL: http://projects:8001
+      DEFAULT_URI: http://tasks:8002
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+      - data
+    deploy:                            
+      resources:
+        limits:
+          cpus: "${TASKS_CPUS:-0.50}"
+          memory: ${TASKS_MEM:-256M}
+    restart: unless-stopped
+
+  db:
+    image: mariadb:12.3
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans .env}
+      ACCOUNTS_DB_PASSWORD: ${ACCOUNTS_DB_PASSWORD:?ACCOUNTS_DB_PASSWORD manquant dans .env}
+      PROJECTS_DB_PASSWORD: ${PROJECTS_DB_PASSWORD:?PROJECTS_DB_PASSWORD manquant dans .env}
+      TASKS_DB_PASSWORD: ${TASKS_DB_PASSWORD:?TASKS_DB_PASSWORD manquant dans .env}
+    volumes:
+      - db-data:/var/lib/mysql                    
+      - ./db/init:/docker-entrypoint-initdb.d:ro  
+    healthcheck:                         
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - data
+    deploy:                            
+      resources:
+        limits:
+          cpus: "${DB_CPUS:-1.00}"
+          memory: ${DB_MEM:-512M}
+    restart: unless-stopped
+
+networks:
+  public:
+  backend:
+    internal: true
+  data:
+    internal: true
+
+volumes:
+  db-data:

@@ -1,0 +1,149 @@
+name: Pipeline d'un service
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Nom du service = nom du dossier dans backend/
+        type: string
+        required: true
+      language:
+        description: Langage du service (node, php, ou none s'il n'y a pas de tests unitaires)
+        type: string
+        required: true
+      port:
+        description: Port d'écoute du service dans le conteneur
+        type: string
+        required: true
+      context:
+        description: Dossier du Dockerfile (par défaut backend/<service>)
+        type: string
+        required: false
+        default: ''
+      healthpath:
+        description: Adresse testée par le test de fumée
+        type: string
+        required: false
+        default: /health
+
+jobs:
+  test:
+    name: Tests (${{ inputs.service }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.language == 'none' && '.' || format('backend/{0}', inputs.service) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Aucun test unitaire pour ce service
+        if: inputs.language == 'none'
+        run: echo "Aucun test unitaire pour ce service (pas de logique applicative)"
+
+      - name: Installer Node.js
+        if: inputs.language == 'node'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/${{ inputs.service }}/package-lock.json
+
+      - name: Installer les dépendances
+        if: inputs.language == 'node'
+        run: npm ci
+
+      - name: Lancer les tests unitaires
+        if: inputs.language == 'node'
+        run: npm test
+
+      - name: Installer PHP
+        if: inputs.language == 'php'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, ctype, iconv, pdo_mysql
+          tools: composer:v2
+
+      - name: Installer les dépendances
+        if: inputs.language == 'php'
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      - name: Lancer les tests unitaires
+        if: inputs.language == 'php'
+        env:
+          DATABASE_URL: "mysql://ci:ci@127.0.0.1:3306/ci?serverVersion=mariadb-12.3.0&charset=utf8mb4"
+        run: vendor/bin/phpunit
+
+  image:
+    name: Image Docker (${{ inputs.service }})
+    needs: test   
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SERVICE: ${{ inputs.service }}
+      PORT: ${{ inputs.port }}
+      CONTEXT: ${{ inputs.context || format('backend/{0}', inputs.service) }}
+      HEALTHPATH: ${{ inputs.healthpath }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Calculer le nom de l'image
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/gesto-${SERVICE}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Connexion à GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Identifiants uniques : sha-<commit> pour chaque commit, et le nom du tag pour un tag Git.
+      - name: Préparer les tags de l'image
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=sha
+            type=ref,event=tag
+
+      - name: Construire l'image
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ env.CONTEXT }}
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.service }}
+
+      - name: Tester le conteneur
+        env:
+          TAG: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          docker run -d --name smoke \
+            -e JWT_SECRET=ci -e DB_HOST=localhost -e DB_USER=ci -e DB_PASSWORD=ci -e DB_NAME=ci \
+            -e APP_SECRET=ci -e DATABASE_URL=mysql://ci:ci@localhost:3306/ci \
+            -p "8080:${PORT}" "$TAG"
+          for i in $(seq 1 20); do
+            if curl -fsS "http://localhost:8080${HEALTHPATH}"; then echo; break; fi
+            if [ "$i" = 20 ]; then docker logs smoke; exit 1; fi
+            sleep 1
+          done
+          test "$(docker exec smoke id -u)" != "0" || { echo "Le conteneur tourne en root"; exit 1; }
+          docker stop smoke
+
+      - name: Publier l'image sur GHCR
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ env.CONTEXT }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ inputs.service }}

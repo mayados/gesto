@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  accounts:
+    uses: ./.github/workflows/service.yml
+    with:
+      service: accounts
+      language: node
+      port: 3000
+
+  projects:
+    uses: ./.github/workflows/service.yml
+    with:
+      service: projects
+      language: php
+      port: 8001
+
+  tasks:
+    uses: ./.github/workflows/service.yml
+    with:
+      service: tasks
+      language: php
+      port: 8002
+
+  frontend:
+    uses: ./.github/workflows/service.yml
+    with:
+      service: frontend
+      language: none
+      port: 8080
+      context: frontend
+      healthpath: /login
