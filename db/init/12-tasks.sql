@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS tasks (
   INDEX idx_tasks_project (project_id),
   INDEX idx_tasks_user (user_id)
 );
+
